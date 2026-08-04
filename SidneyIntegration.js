@@ -64,3 +64,50 @@ function sendNewCodesToSidney_(newCodes, activeCount, expiredCount) {
   const status = response.getResponseCode();
   if (status < 200 || status >= 300) throw new Error("Sidney Worker 回應 HTTP " + status);
 }
+
+function testSidneyIntegration() {
+  const result = sendSignedSidneyRequest_({
+    type: "connection_test",
+    source: "wwm-redeem-code-tracker"
+  }, "connection-test-" + Utilities.getUuid());
+
+  if (!result || result.ok !== true || result.connectionTest !== true) {
+    throw new Error("Sidney Worker 未回傳有效的老祖連線測試結果");
+  }
+
+  SpreadsheetApp.getUi().alert(
+    "☯ 老祖連線測試成功",
+    "Worker、共享密鑰、老祖 Bot 與兌換碼公告頻道均已驗證成功。請到 Discord 查看老祖的測試訊息。",
+    SpreadsheetApp.getUi().ButtonSet.OK
+  );
+}
+
+function sendSignedSidneyRequest_(payload, eventId) {
+  const properties = PropertiesService.getScriptProperties();
+  const endpoint = String(properties.getProperty(SIDNEY_ENDPOINT_PROPERTY) || "");
+  const secret = String(properties.getProperty(SIDNEY_SECRET_PROPERTY) || "");
+  if (!endpoint || !secret) throw new Error("尚未設定老祖公告端點與共享密鑰");
+
+  const timestamp = String(Math.floor(Date.now() / 1000));
+  const cleanEventId = String(eventId || Utilities.getUuid()).replace(/[^A-Za-z0-9_-]/g, "-");
+  const body = JSON.stringify(payload || {});
+  const signature = Utilities.computeHmacSha256Signature(timestamp + "." + cleanEventId + "." + body, secret)
+    .map(function (value) { return (value < 0 ? value + 256 : value).toString(16).padStart(2, "0"); })
+    .join("");
+  const response = UrlFetchApp.fetch(endpoint, {
+    method: "post",
+    contentType: "application/json",
+    payload: body,
+    headers: {
+      "X-Sidney-Timestamp": timestamp,
+      "X-Sidney-Event-Id": cleanEventId,
+      "X-Sidney-Signature": signature
+    },
+    muteHttpExceptions: true
+  });
+  const status = response.getResponseCode();
+  if (status < 200 || status >= 300) {
+    throw new Error("Sidney Worker 連線測試失敗｜HTTP " + status + "｜" + response.getContentText());
+  }
+  return JSON.parse(response.getContentText() || "{}");
+}

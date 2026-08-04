@@ -9,5 +9,8 @@
 3. 重新整理 Google 試算表，選擇「📡 Discord → ☯ 設定老祖自動公告」。
 4. 端點填入 `https://你的-worker網域/integrations/redeem-codes`。
 5. 共享密鑰必須與 Worker Secret 完全相同，且至少 32 字元。
+6. 選擇「📡 Discord → ☯ 測試老祖連線」。Discord 應收到老祖發送的測試訊息。
+
+「🧪 測試舊版 Webhook」只驗證原有 Webhook，不代表老祖整合成功。
 
 共享密鑰只保存在 Apps Script 的 Script Properties，不可提交至 GitHub。

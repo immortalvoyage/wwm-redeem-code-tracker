@@ -57,14 +57,20 @@ function onOpen() {
     .addSeparator()
 
     .addItem(
-      "🧪 測試 Discord",
+      "🧪 測試舊版 Webhook",
       "testDiscordWebhook"
     );
 
-  discordMenu.addSeparator().addItem(
-    "☯ 設定老祖自動公告",
-    "setSidneyIntegration"
-  );
+  discordMenu
+    .addSeparator()
+    .addItem(
+      "☯ 測試老祖連線",
+      "testSidneyIntegration"
+    )
+    .addItem(
+      "☯ 設定老祖自動公告",
+      "setSidneyIntegration"
+    );
 
   /**************************************************
    * 工具

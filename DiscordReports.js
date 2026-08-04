@@ -149,7 +149,7 @@ function sendDiscordCodeList_(
 
 
 /**************************************************
- * 測試 Discord
+ * 測試舊版 Discord Webhook
  **************************************************/
 function testDiscordWebhook() {
 
