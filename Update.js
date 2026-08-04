@@ -48,7 +48,7 @@ function updateAll() {
         Array.isArray(LAST_NEW_CODES)
       ) {
 
-        sendDiscordNewCodes_(
+        sendNewCodesToSidney_(
           LAST_NEW_CODES,
           active.length,
           expired.length
@@ -58,9 +58,9 @@ function updateAll() {
 
     } catch (discordError) {
 
-      // Discord 失敗不影響主要資料更新
+      // 老祖公告失敗不影響主要資料更新
       console.error(
-        "Discord 通知發送失敗：",
+        "老祖兌換碼公告發送失敗：",
         discordError
       );
 

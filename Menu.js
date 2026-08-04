@@ -61,6 +61,11 @@ function onOpen() {
       "testDiscordWebhook"
     );
 
+  discordMenu.addSeparator().addItem(
+    "☯ 設定老祖自動公告",
+    "setSidneyIntegration"
+  );
+
   /**************************************************
    * 工具
    **************************************************/
