@@ -5,6 +5,7 @@
 
 const SIDNEY_ENDPOINT_PROPERTY = "SIDNEY_REDEEM_ENDPOINT";
 const SIDNEY_SECRET_PROPERTY = "SIDNEY_REDEEM_SECRET";
+const SIDNEY_PENDING_EVENT_PROPERTY = "SIDNEY_PENDING_REDEEM_EVENT";
 
 function setSidneyIntegration() {
   const ui = SpreadsheetApp.getUi();
@@ -50,7 +51,10 @@ function sendNewCodesToSidney_(newCodes, activeCount, expiredCount) {
     .map(function (value) { return (value < 0 ? value + 256 : value).toString(16).padStart(2, "0"); })
     .join("");
 
-  const response = UrlFetchApp.fetch(endpoint, {
+  const pending = { newCodes: items, activeCount: Number(activeCount) || 0, expiredCount: Number(expiredCount) || 0, queuedAt: new Date().toISOString(), attempts: 0 };
+  let response;
+  try {
+    response = UrlFetchApp.fetch(endpoint, {
     method: "post",
     contentType: "application/json",
     payload: body,
@@ -60,9 +64,41 @@ function sendNewCodesToSidney_(newCodes, activeCount, expiredCount) {
       "X-Sidney-Signature": signature
     },
     muteHttpExceptions: true
-  });
+    });
+  } catch (error) {
+    queueSidneyEvent_(pending, error);
+    throw error;
+  }
   const status = response.getResponseCode();
-  if (status < 200 || status >= 300) throw new Error("Sidney Worker 回應 HTTP " + status);
+  if (status < 200 || status >= 300) {
+    const error = new Error("Sidney Worker 回應 HTTP " + status);
+    queueSidneyEvent_(pending, error);
+    throw error;
+  }
+  properties.deleteProperty(SIDNEY_PENDING_EVENT_PROPERTY);
+}
+
+function queueSidneyEvent_(event, error) {
+  const previous = getPendingSidneyEvent_();
+  const next = Object.assign({}, event, {
+    attempts: Number(previous && previous.attempts || event.attempts || 0) + 1,
+    lastError: String(error && error.message || error || "unknown").slice(0, 300),
+    lastAttemptAt: new Date().toISOString()
+  });
+  PropertiesService.getScriptProperties().setProperty(SIDNEY_PENDING_EVENT_PROPERTY, JSON.stringify(next));
+}
+
+function getPendingSidneyEvent_() {
+  const raw = PropertiesService.getScriptProperties().getProperty(SIDNEY_PENDING_EVENT_PROPERTY);
+  if (!raw) return null;
+  try { return JSON.parse(raw); } catch (error) { return null; }
+}
+
+function retryPendingSidneyEvent_() {
+  const pending = getPendingSidneyEvent_();
+  if (!pending || !Array.isArray(pending.newCodes) || pending.attempts >= 12) return false;
+  sendNewCodesToSidney_(pending.newCodes, pending.activeCount, pending.expiredCount);
+  return true;
 }
 
 function testSidneyIntegration() {

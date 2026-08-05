@@ -8,6 +8,9 @@ function updateAll() {
 
   try {
 
+    // 每次排程先重試上次未送達的老祖公告；失敗不阻斷主要資料更新。
+    try { retryPendingSidneyEvent_(); } catch (retryError) { console.error("重試老祖公告失敗：", retryError); }
+
     createSheets();
 
     const api = getApiData();
