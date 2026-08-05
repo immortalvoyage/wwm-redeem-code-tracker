@@ -94,6 +94,21 @@ function getPendingSidneyEvent_() {
   try { return JSON.parse(raw); } catch (error) { return null; }
 }
 
+function getSidneyIntegrationStatus() {
+  const properties = PropertiesService.getScriptProperties();
+  const pending = getPendingSidneyEvent_();
+  const status = {
+    configured: Boolean(properties.getProperty(SIDNEY_ENDPOINT_PROPERTY) && properties.getProperty(SIDNEY_SECRET_PROPERTY)),
+    pending: Boolean(pending),
+    attempts: Number(pending && pending.attempts || 0),
+    queuedAt: pending && pending.queuedAt || null,
+    lastAttemptAt: pending && pending.lastAttemptAt || null,
+    lastError: pending && pending.lastError || null
+  };
+  Logger.log(JSON.stringify(status));
+  return status;
+}
+
 function retryPendingSidneyEvent_() {
   const pending = getPendingSidneyEvent_();
   if (!pending || !Array.isArray(pending.newCodes) || pending.attempts >= 12) return false;

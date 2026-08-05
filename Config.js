@@ -14,7 +14,7 @@ const CONFIG = {
     NAME: "🎮 WWM Redeem Code Tracker",
 
     // 專案版本
-    VERSION: "V2.1",
+    VERSION: "V2.2",
 
     // Discord 顯示名稱
     DISCORD_NAME: "🎮 WWM Redeem Code Tracker",
