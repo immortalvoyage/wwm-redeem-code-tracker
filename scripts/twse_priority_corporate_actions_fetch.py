@@ -25,9 +25,13 @@ def months():
             yield year, month
 
 
+def roc_date(year: int, month: int, day: int) -> str:
+    return f"{year - 1911:03d}{month:02d}{day:02d}"
+
+
 def fetch_month(year: int, month: int) -> tuple[bytes, str]:
-    start = f"{year}{month:02d}01"
-    end = f"{year}{month:02d}{calendar.monthrange(year, month)[1]:02d}"
+    start = roc_date(year, month, 1)
+    end = roc_date(year, month, calendar.monthrange(year, month)[1])
     params = urllib.parse.urlencode({"response": "json", "strDate": start, "endDate": end})
     url = f"{BASE_URL}?{params}"
     last = None
@@ -38,9 +42,12 @@ def fetch_month(year: int, month: int) -> tuple[bytes, str]:
         try:
             with urllib.request.urlopen(req, timeout=30) as response:
                 raw = response.read()
-            json.loads(raw.decode("utf-8-sig"))
+            payload = json.loads(raw.decode("utf-8-sig"))
+            stat = str(payload.get("stat", ""))
+            if "結束日期小於查詢開始日期" in stat:
+                raise ValueError(f"TWSE rejected date range {start}..{end}: {stat}")
             return raw, url
-        except (urllib.error.URLError, urllib.error.HTTPError, TimeoutError, json.JSONDecodeError) as exc:
+        except (urllib.error.URLError, urllib.error.HTTPError, TimeoutError, json.JSONDecodeError, ValueError) as exc:
             last = exc
             print(f"{start} attempt {attempt}/4 failed: {type(exc).__name__}: {exc}", flush=True)
     raise RuntimeError(f"failed TWT49U {start}: {last}")
@@ -59,7 +66,7 @@ def main() -> int:
         payload = json.loads(raw.decode("utf-8-sig"))
         fields = payload.get("fields") or []
         rows = payload.get("data") or []
-        monthly.append({"month": key, "rows": len(rows), "sha256": digest, "source": url})
+        monthly.append({"month": key, "rows": len(rows), "stat": payload.get("stat"), "sha256": digest, "source": url})
         for row in rows:
             if not isinstance(row, list) or len(row) < 7:
                 continue
@@ -75,8 +82,9 @@ def main() -> int:
     for event in filtered:
         per_symbol[event["symbol"]] += 1
     summary = {
-        "schema_version": 1,
+        "schema_version": 2,
         "status": "SUCCESS",
+        "date_format": "ROC_YYYMMDD",
         "generated_at_utc": datetime.now(timezone.utc).isoformat(),
         "source": BASE_URL,
         "month_start": "202301",
