@@ -1,31 +1,66 @@
 from __future__ import annotations
 
-import urllib.error
+import html
+import re
 import urllib.parse
 import urllib.request
 
-BASE_URL = "https://www.twse.com.tw/exchangeReport/TWT49U"
+PAGE_URL = "https://www.twse.com.tw/zh/announcement/ex-right/twt49u.html"
 USER_AGENT = "TWSE-priority-universe-corporate-action-audit/1.0"
+KEYWORDS = ("TWT49U", "twt49u", "strDate", "endDate", "startDate", "exchangeReport", "exRight")
+
+
+def get(url: str) -> tuple[str, str]:
+    req = urllib.request.Request(url, headers={"User-Agent": USER_AGENT, "Accept": "text/html,application/javascript,*/*"})
+    with urllib.request.urlopen(req, timeout=30) as response:
+        body = response.read().decode("utf-8", errors="replace")
+        return body, response.geturl()
+
+
+def contexts(text: str, keyword: str, radius: int = 220):
+    low = text.lower()
+    needle = keyword.lower()
+    pos = 0
+    count = 0
+    while True:
+        idx = low.find(needle, pos)
+        if idx < 0:
+            return
+        start = max(0, idx - radius)
+        end = min(len(text), idx + len(keyword) + radius)
+        yield re.sub(r"\s+", " ", html.unescape(text[start:end]))
+        count += 1
+        if count >= 8:
+            return
+        pos = idx + len(keyword)
 
 
 def main() -> int:
-    params = urllib.parse.urlencode({"response": "json", "strDate": "1120101", "endDate": "1120131"})
-    url = f"{BASE_URL}?{params}"
-    req = urllib.request.Request(url, headers={"User-Agent": USER_AGENT, "Accept": "application/json,*/*"})
-    try:
-        with urllib.request.urlopen(req, timeout=30) as response:
-            print(f"STATUS={getattr(response, 'status', 200)}")
-            print(f"FINAL_URL={response.geturl()}")
-            print(response.read(300).decode("utf-8", errors="replace"))
-    except urllib.error.HTTPError as exc:
-        print(f"HTTP_STATUS={exc.code}")
-        print(f"LOCATION={exc.headers.get('Location')}")
-        print(f"CONTENT_TYPE={exc.headers.get('Content-Type')}")
+    page, final_url = get(PAGE_URL)
+    print(f"PAGE_FINAL_URL={final_url}")
+    for keyword in KEYWORDS:
+        for snippet in contexts(page, keyword):
+            print(f"PAGE[{keyword}] {snippet}")
+
+    script_srcs = re.findall(r'<script[^>]+src=["\']([^"\']+)["\']', page, flags=re.I)
+    print(f"SCRIPT_COUNT={len(script_srcs)}")
+    for src in script_srcs:
+        url = urllib.parse.urljoin(final_url, src)
+        print(f"SCRIPT={url}")
         try:
-            print(exc.read(300).decode("utf-8", errors="replace"))
-        except Exception:
-            pass
-        return 2
+            text, actual = get(url)
+        except Exception as exc:
+            print(f"SCRIPT_ERROR={url} {type(exc).__name__}: {exc}")
+            continue
+        matched = False
+        for keyword in KEYWORDS:
+            snippets = list(contexts(text, keyword))
+            if snippets:
+                matched = True
+                for snippet in snippets:
+                    print(f"JS[{keyword}] {snippet}")
+        if matched:
+            print(f"MATCHED_SCRIPT={actual}")
     return 0
 
 
