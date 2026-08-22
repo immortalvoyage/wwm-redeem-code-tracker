@@ -16,6 +16,7 @@ RAW = PKG / "data/raw/twse/fmtqik"
 ZIP = OUT / "twse_fmtqik_2023_2025_raw.zip"
 SUMMARY = OUT / "fetch_summary.json"
 USER_AGENT = "TWSE-public-historical-fetch/1.0"
+TRIGGER_VERSION = 1
 
 
 def expected_months() -> list[str]:
@@ -76,6 +77,7 @@ def make_zip() -> None:
 
 def main() -> int:
     months = expected_months()
+    assert TRIGGER_VERSION == 1
     assert len(months) == 36 and months[0] == "202301" and months[-1] == "202512"
     RAW.mkdir(parents=True, exist_ok=True)
     manifest = []
@@ -103,6 +105,7 @@ def main() -> int:
         "month_end": "202512",
         "includes_2026": False,
         "zip_sha256": hashlib.sha256(ZIP.read_bytes()).hexdigest(),
+        "trigger_version": TRIGGER_VERSION,
     }
     SUMMARY.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     print(json.dumps(payload, sort_keys=True), flush=True)
