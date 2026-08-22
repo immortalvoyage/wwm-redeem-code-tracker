@@ -1,0 +1,32 @@
+name: Temporary TWSE Priority Corporate Actions
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - '.github/workflows/twse-priority-corp-actions.yml'
+      - 'scripts/twse_priority_corporate_actions_fetch.py'
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Compile bounded corporate-action fetcher
+        run: python -m py_compile scripts/twse_priority_corporate_actions_fetch.py
+      - name: Fetch official TWSE corporate-action audit data
+        run: python scripts/twse_priority_corporate_actions_fetch.py
+      - name: Upload audit artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: twse-priority-corporate-actions-2023-2025
+          path: twse_priority_universe_output/corporate_actions/
+          if-no-files-found: error
+          retention-days: 7
