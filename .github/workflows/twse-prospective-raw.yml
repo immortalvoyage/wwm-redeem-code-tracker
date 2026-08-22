@@ -1,0 +1,36 @@
+name: TWSE Prospective Raw Q4 2026
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'automation/prospective_as_of.txt'
+      - '.github/workflows/twse-prospective-raw.yml'
+      - 'scripts/twse_prospective_raw_fetch.py'
+
+permissions:
+  contents: read
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Validate trigger date
+        run: |
+          AS_OF="$(tr -d '\r\n ' < automation/prospective_as_of.txt)"
+          [[ "$AS_OF" =~ ^2026-[0-9]{2}-[0-9]{2}$ ]]
+          echo "AS_OF=$AS_OF" >> "$GITHUB_ENV"
+      - name: Fetch official TWSE raw only
+        run: python scripts/twse_prospective_raw_fetch.py --as-of "$AS_OF" --output prospective_raw_bundle
+      - name: Upload immutable raw bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: twse-prospective-raw-${{ env.AS_OF }}
+          path: prospective_raw_bundle/
+          if-no-files-found: error
+          retention-days: 14
